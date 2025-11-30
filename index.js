@@ -64,41 +64,57 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-app.post('/api/upload', upload.array('files', 10), async (req, res) => {
+app.post('/api/upload', upload.array('files', 10), (req, res) => {
   try {
-    const files = [];
-    for (const file of req.files || []) {
-      // Send the file to the malware-check service
-      const formData = new FormData();
-      formData.append('file', fs.createReadStream(file.path));
-
-      const response = await axios.post('https://malware-check.amplfy.com/analyze', formData, {
-        headers: formData.getHeaders(),
-      });
-
-      // Check if the malware-check service detected malware
-      if (response.data.success !== true) {
-        // Delete the file if malware is detected
-        fs.unlinkSync(file.path);
-        return res.status(400).json({ error: `Malware detected in file: ${file.originalname}` });
-      }
-
-      // If no malware, add file metadata to the response
-      files.push({
-        originalName: file.originalname,
-        savedName: file.filename,
-        size: file.size,
-        mimeType: file.mimetype,
-        url: `/uploads/${file.filename}`,
-      });
-    }
-
+    const files = (req.files || []).map(f => ({
+      originalName: f.originalname,
+      savedName: f.filename,
+      size: f.size,
+      mimeType: f.mimetype,
+      url: `/uploads/${f.filename}`
+    }));
     return res.json({ files });
   } catch (err) {
     console.error('Upload error', err);
     return res.status(500).json({ error: 'Upload failed' });
   }
 });
+
+// app.post('/api/upload', upload.array('files', 10), async (req, res) => {
+//   try {
+//     const files = [];
+//     for (const file of req.files || []) {
+//       // Send the file to the malware-check service
+//       const formData = new FormData();
+//       formData.append('file', fs.createReadStream(file.path));
+
+//       const response = await axios.post('https://malware-check.amplfy.com/analyze', formData, {
+//         headers: formData.getHeaders(),
+//       });
+
+//       // Check if the malware-check service detected malware
+//       if (response.data.success !== true) {
+//         // Delete the file if malware is detected
+//         fs.unlinkSync(file.path);
+//         return res.status(400).json({ error: `Malware detected in file: ${file.originalname}` });
+//       }
+
+//       // If no malware, add file metadata to the response
+//       files.push({
+//         originalName: file.originalname,
+//         savedName: file.filename,
+//         size: file.size,
+//         mimeType: file.mimetype,
+//         url: `/uploads/${file.filename}`,
+//       });
+//     }
+
+//     return res.json({ files });
+//   } catch (err) {
+//     console.error('Upload error', err);
+//     return res.status(500).json({ error: 'Upload failed' });
+//   }
+// });
 
 // Serve uploaded files statically
 app.use('/uploads', express.static(uploadsDir));
