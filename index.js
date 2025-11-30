@@ -102,6 +102,10 @@ app.post('/api/upload', upload.array('files', 10), async (req, res) => {
 // Serve uploaded files statically
 app.use('/uploads', express.static(uploadsDir));
 
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
