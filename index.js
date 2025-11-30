@@ -51,7 +51,8 @@ app.post('/api/chat', (req, res) => {
 });
 
 // File upload endpoint (optional) - saves to ./uploads and returns metadata
-const uploadsDir = path.join(__dirname, 'uploads');
+// Update the uploads directory to use Vercel's writable /tmp directory
+const uploadsDir = path.join('/tmp', 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
 
 const storage = multer.diskStorage({
