@@ -1,13 +1,12 @@
 const express = require('express');
 const cors = require('cors');
-const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const axios = require('axios'); // Add axios for making HTTP requests
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -21,107 +20,19 @@ if (fs.existsSync(buildPath)) {
   });
 }
 
-// Simple POST /api/chat -> mock AI reply
-app.post('/api/chat', (req, res) => {
-  try {
-    const { model, messages } = req.body || {};
-    // Basic safety: don't crash on missing data
-    const lastUser = Array.isArray(messages)
-      ? [...messages].reverse().find(m => m.role === 'user')
-      : null;
+// Routes
+const chatRoutes = require('./src/routes/chatRoute');
+const uploadRoutes = require('./src/routes/uploadRoute');
+const healthRoutes = require('./src/routes/healthRoute');
 
-    const userText = lastUser ? lastUser.content : '';
-
-    // Example simple response: echo back or canned message
-    const replyText =
-      userText && userText.trim().length > 0
-        ? `Received your message: "${userText}". (This is a mock response from the local server.)`
-        : 'Hello from mock AI server. Send a message in "messages".';
-
-    return res.json({
-      message: {
-        content: replyText
-      },
-      model: model || 'mock-model'
-    });
-  } catch (err) {
-    console.error('Error in /api/chat', err);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// File upload endpoint (optional) - saves to ./uploads and returns metadata
-// Update the uploads directory to use Vercel's writable /tmp directory
-const uploadsDir = path.join('/tmp', 'uploads');
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadsDir),
-  filename: (req, file, cb) => {
-    const safe = `${Date.now()}-${file.originalname.replace(/\s+/g, '_')}`;
-    cb(null, safe);
-  }
-});
-const upload = multer({ storage });
-
-app.post('/api/upload', upload.array('files', 10), (req, res) => {
-  try {
-    const files = (req.files || []).map(f => ({
-      originalName: f.originalname,
-      savedName: f.filename,
-      size: f.size,
-      mimeType: f.mimetype,
-      url: `/uploads/${f.filename}`
-    }));
-    return res.json({ files });
-  } catch (err) {
-    console.error('Upload error', err);
-    return res.status(500).json({ error: 'Upload failed' });
-  }
-});
-
-// app.post('/api/upload', upload.array('files', 10), async (req, res) => {
-//   try {
-//     const files = [];
-//     for (const file of req.files || []) {
-//       // Send the file to the malware-check service
-//       const formData = new FormData();
-//       formData.append('file', fs.createReadStream(file.path));
-
-//       const response = await axios.post('https://malware-check.amplfy.com/analyze', formData, {
-//         headers: formData.getHeaders(),
-//       });
-
-//       // Check if the malware-check service detected malware
-//       if (response.data.success !== true) {
-//         // Delete the file if malware is detected
-//         fs.unlinkSync(file.path);
-//         return res.status(400).json({ error: `Malware detected in file: ${file.originalname}` });
-//       }
-
-//       // If no malware, add file metadata to the response
-//       files.push({
-//         originalName: file.originalname,
-//         savedName: file.filename,
-//         size: file.size,
-//         mimeType: file.mimetype,
-//         url: `/uploads/${file.filename}`,
-//       });
-//     }
-
-//     return res.json({ files });
-//   } catch (err) {
-//     console.error('Upload error', err);
-//     return res.status(500).json({ error: 'Upload failed' });
-//   }
-// });
+app.use('/api', chatRoutes);
+app.use('/api', uploadRoutes);
+app.use('/api', healthRoutes);
 
 // Serve uploaded files statically
+const uploadsDir = path.join('/tmp', 'uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
 app.use('/uploads', express.static(uploadsDir));
-
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
 
 // Start server
 app.listen(PORT, () => {
