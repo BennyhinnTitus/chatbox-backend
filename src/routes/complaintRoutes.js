@@ -4,12 +4,26 @@ const Complaint = require('../models/Complaint');
 const { uploadEvidences } = require('../utils/uploadEvidences');
 const multer = require("multer");
 const upload = multer();
+const mongoose = require('mongoose');
+const { randomUUID } = require('crypto');
 
 const router = require('express').Router();
 
 // Helper: generate tracking ID
 const generateTrackingId = () => {
   return "CMP-" + Date.now();
+};
+
+const generateEvidenceIds = (count) => {
+  if (!count) return [];
+
+  const timestampPart = Date.now().toString(36).toUpperCase();
+  const randomPart = randomUUID().split('-')[0].toUpperCase();
+
+  return Array.from({ length: count }, (_, index) => {
+    const indexPart = String(index + 1).padStart(3, '0');
+    return `E-${timestampPart}-${randomPart}-${indexPart}`;
+  });
 };
 
 router.post('/', upload.array("evidences"), async (req, res) => {
@@ -24,8 +38,7 @@ router.post('/', upload.array("evidences"), async (req, res) => {
       incidentDate,
       incidentTime,
       description,
-      suspectedSource,
-      evidences
+      suspectedSource
     } = req.body || {};
 console.log("Received complaint data:", req.body);
     // if (!submittedBy) {
@@ -34,12 +47,22 @@ console.log("Received complaint data:", req.body);
 
     console.log("input evidences:", req.files); // fixed
 
-    // call the correct function with req.files
-    const evidenceURLs = await uploadEvidences(req.files || []);
+    const files = req.files || [];
+    const complaintId = new mongoose.Types.ObjectId();
+    const evidenceIds = generateEvidenceIds(files.length);
+
+    let uploadedEvidences = [];
+    if (files.length) {
+      uploadedEvidences = await uploadEvidences(files, {
+        complaintId,
+        evidenceIds
+      });
+    }
 
     const trackingId = generateTrackingId();
 
     const savedComplaint = await Complaint.create({
+      _id: complaintId,
       submittedBy,        // <-- include it here
       trackingId,
       name,
@@ -51,7 +74,7 @@ console.log("Received complaint data:", req.body);
       incidentTime,
       description,
       suspectedSource,
-      evidences: evidenceURLs
+      evidences: uploadedEvidences
     });
 
     return res.status(201).json({

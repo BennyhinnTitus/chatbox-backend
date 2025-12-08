@@ -1,5 +1,12 @@
 const mongoose = require('mongoose');
 
+const evidenceSchema = new mongoose.Schema(
+  {
+    evidence_id: { type: String, required: true }
+  },
+  { _id: false }
+);
+
 const complaintSchema = new mongoose.Schema(
   {
     // --- Who submitted the complaint ---
@@ -23,7 +30,8 @@ const complaintSchema = new mongoose.Schema(
     suspectedSource: { type: String },
 
     evidences: {
-      type: [String], // Stores file URLs or file IDs
+      type: [evidenceSchema],
+      // Stores structured metadata for each uploaded evidence
       default: []
     },
 
