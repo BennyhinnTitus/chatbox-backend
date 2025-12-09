@@ -101,7 +101,7 @@ router.get('/:trackingId', async (req, res) => {
     if (!complaint) {
       return res.status(404).json({ error: 'Complaint not found' });
     }
-    res.status(200).json(complaint);
+    res.status(200).json({ status: complaint.status });
   } catch (err) {
     console.error('Error fetching complaint:', err);
     return res.status(500).json({ error: 'Internal server error' });
